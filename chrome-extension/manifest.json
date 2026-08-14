@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Facebook Bulk Unfollow",
+  "version": "1.0.2",
+  "description": "Runs a resumable 30-second batch unfollow workflow on Facebook Following.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://www.facebook.com/*"],
+  "action": {
+    "default_title": "Facebook Bulk Unfollow",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
