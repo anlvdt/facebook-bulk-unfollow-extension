@@ -159,7 +159,7 @@
       panel = document.createElement('section');
       panel.id = PANEL_ID;
       Object.assign(panel.style, {
-        position: 'fixed', top: '20px', right: '20px', zIndex: 2147483647,
+        position: 'fixed', right: '20px', bottom: '24px', zIndex: 2147483647,
         width: '260px', padding: '12px', color: '#fff', background: '#1c1e21',
         borderRadius: '8px', font: '14px/1.4 system-ui, sans-serif', boxShadow: '0 3px 12px rgba(0,0,0,.35)'
       });
