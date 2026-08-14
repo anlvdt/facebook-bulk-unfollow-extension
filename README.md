@@ -65,3 +65,54 @@ Bản này giữ lại hai userscript lịch sử để tham khảo, đồng th�
 ## License
 
 Upstream hiển thị huy hiệu MIT trong README, nhưng snapshot được dùng để tạo project này không có file `LICENSE` riêng. Repository này không tự cấp một license thay thế; hãy xác minh điều khoản hiện hành ở upstream và xin phép tác giả khi cần trước khi phân phối lại hoặc dùng ngoài mục đích cá nhân/thử nghiệm.
+
+---
+
+# English
+
+## Overview
+
+This is a Manifest V3 Chrome Extension for managing a Facebook **Following** list in batches. It opens the three-dot menu on each Following card, chooses **Unfollow**, reloads the page, then continues after a 30-second countdown.
+
+> Status: experimental. Facebook regularly changes its DOM, accessible labels, and interaction limits. Test with a small batch before leaving it running for a long time.
+
+## Features
+
+- Manifest V3 Chrome Extension — no Tampermonkey required.
+- **Start/Pause** popup and an in-page status panel.
+- Up to 25 entries per batch.
+- A page reload and a visible, fixed 30-second countdown between batches.
+- Local progress storage using `chrome.storage.local`, so progress survives the extension's reloads.
+- Targets three-dot menus below the selected **Following** tab only, excluding profile-header and Friends-toolbar menus.
+- Recognizes English and Vietnamese menu text: `Unfollow` / `Bỏ theo dõi`.
+
+## Installation
+
+1. Download or clone this repository.
+2. Open `chrome://extensions` in Google Chrome.
+3. Enable **Developer mode**.
+4. Choose **Load unpacked**.
+5. Select the [`chrome-extension`](./chrome-extension) folder.
+6. Open `https://www.facebook.com/<your-username>/following`.
+7. Click the extension icon and choose **Start continuous run**.
+
+After changing the source, press the extension's **Reload** icon on `chrome://extensions`, then reload the Facebook tab.
+
+## Pause and recovery
+
+- Use **Pause** in the popup or on-page panel to stop the workflow.
+- The extension resumes only after a refresh initiated by the extension while its state is Active.
+- If Facebook changes its UI or the extension reports that it cannot find an Unfollow action, pause the workflow and verify the page manually before retrying.
+
+## Privacy and safety
+
+- The extension has access only to `https://www.facebook.com/*`, plus `storage` for local state and `tabs` so the popup can identify the current Facebook tab.
+- It does not send data to an external server and does not store Facebook passwords.
+- You are responsible for using it only on your own account and for complying with Facebook's terms.
+- Do not leave the workflow unattended if Facebook displays a warning, verification prompt, or CAPTCHA.
+
+## Source attribution and license
+
+This project is derived from [naqashafzal/Facebook-Bulk-Unfollow-Script](https://github.com/naqashafzal/Facebook-Bulk-Unfollow-Script), using commit [`8495d23f3e5262bbb0a8a2e45189ace85c400808`](https://github.com/naqashafzal/Facebook-Bulk-Unfollow-Script/commit/8495d23f3e5262bbb0a8a2e45189ace85c400808) by Naqash Afzal as the source snapshot. The Chrome extension, documentation, local storage flow, 30-second batching, and scoped Following selectors are later additions. See [NOTICE.md](./NOTICE.md) for the complete attribution record.
+
+The upstream README displays an MIT badge, but the cloned source snapshot did not include a separate `LICENSE` file. This repository does not create or reinterpret a replacement license for upstream work. Verify the upstream project's current license and obtain any required authorization before redistribution or commercial use.
