@@ -16,6 +16,8 @@
     batches: 0,
     totalCancelledRequests: 0,
     cancelBatches: 0,
+    totalLeftGroups: 0,
+    leaveGroupBatches: 0,
     message: 'Open your Facebook Following page to start.'
   };
 
@@ -28,6 +30,7 @@
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
   const isFollowingPage = () => /\/(?:following|friends_following)(?:[/?#]|$)/.test(location.pathname + location.search);
   const isFriendRequestsPage = () => /^\/friends\/requests(?:[/?#]|$)/.test(location.pathname + location.search);
+  const isJoinedGroupsPage = () => /^\/groups\/joins(?:[/?#]|$)/.test(location.pathname + location.search);
 
   async function getState() {
     const stored = await chrome.storage.local.get(STATE_KEY);
@@ -95,6 +98,41 @@
   function getCancelRequestButtons(dialog) {
     return Array.from(dialog.querySelectorAll('button, [role="button"]'))
       .filter(button => isVisible(button) && /^(cancel request|hủy lời mời)$/i.test((button.innerText || '').trim()));
+  }
+
+  function getJoinedGroupButtons() {
+    const main = document.querySelector('[role="main"]') || document;
+    return Array.from(main.querySelectorAll('button, [role="button"]'))
+      .filter(button => isVisible(button) && /^(joined|đã tham gia)$/i.test((button.innerText || '').trim()));
+  }
+
+  function findLeaveGroupAction() {
+    return Array.from(document.querySelectorAll('[role="menuitem"], button, [role="button"]'))
+      .find(button => isVisible(button) && /^(leave group|rời khỏi nhóm)$/i.test((button.innerText || '').trim()));
+  }
+
+  async function leaveGroupFromButton(joinedButton) {
+    joinedButton.click();
+    await sleep(MENU_OPEN_DELAY_MS);
+    const leaveAction = findLeaveGroupAction();
+    if (!leaveAction) {
+      await closeMenu(joinedButton);
+      return false;
+    }
+
+    leaveAction.click();
+    await sleep(500);
+
+    // Some Facebook variants ask for a confirmation in a dialog. Confirm only an exact
+    // Leave group / Rời khỏi nhóm action inside that dialog.
+    const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).find(isVisible);
+    const confirmButton = dialog && Array.from(dialog.querySelectorAll('button, [role="button"]'))
+      .find(button => isVisible(button) && /^(leave group|rời khỏi nhóm)$/i.test((button.innerText || '').trim()));
+    if (confirmButton) {
+      confirmButton.click();
+      await sleep(500);
+    }
+    return true;
   }
 
   function findSponsoredHeading() {
@@ -267,6 +305,61 @@
     }
   }
 
+  async function runLeaveGroupsBatch() {
+    const initialState = await getState();
+    if (isRunning || !initialState.active || initialState.task !== 'leaveGroups' || !isJoinedGroupsPage()) return;
+    isRunning = true;
+    await saveState({ message: 'Loading joined groups for the next batch…' });
+
+    try {
+      await scrollToLoadProfiles();
+      const joinedButtons = getJoinedGroupButtons();
+      if (joinedButtons.length === 0) {
+        await saveState({ active: false, task: null, message: 'Stopped: no Joined group cards were found.' });
+        return;
+      }
+
+      let left = 0;
+      for (const joinedButton of joinedButtons) {
+        const state = await getState();
+        if (!state.active || state.task !== 'leaveGroups' || left >= BATCH_SIZE) break;
+
+        try {
+          joinedButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          await sleep(350);
+          if (!await leaveGroupFromButton(joinedButton)) continue;
+
+          left += 1;
+          const latest = await getState();
+          await saveState({
+            totalLeftGroups: latest.totalLeftGroups + 1,
+            message: `Left ${left}/${BATCH_SIZE} groups in this batch…`
+          });
+          await sleep(BETWEEN_ACTIONS_MS);
+        } catch (error) {
+          console.warn('[Facebook Bulk Unfollow] Could not leave group:', error);
+          await closeMenu(joinedButton);
+        }
+      }
+
+      const state = await getState();
+      if (!state.active || state.task !== 'leaveGroups') return;
+      if (left === 0) {
+        await saveState({ active: false, task: null, message: 'Stopped: no Leave group action was found.' });
+        return;
+      }
+
+      await saveState({
+        leaveGroupBatches: state.leaveGroupBatches + 1,
+        message: `Left group batch complete (${left}). Refreshing…`
+      });
+      await sleep(1_000);
+      location.reload();
+    } finally {
+      isRunning = false;
+    }
+  }
+
   function renderPanel(state) {
     // Keep Facebook's non-Following surfaces (especially Messenger) unobstructed. The
     // browser-action popup remains available everywhere for checking state or pausing.
@@ -290,7 +383,7 @@
     const title = document.createElement('strong');
     title.textContent = 'Bulk Unfollow';
     const stats = document.createElement('div');
-    stats.textContent = `Unfollowed: ${state.totalUnfollowed} · Cancelled requests: ${state.totalCancelledRequests}`;
+    stats.textContent = `Unfollowed: ${state.totalUnfollowed} · Cancelled: ${state.totalCancelledRequests} · Groups left: ${state.totalLeftGroups}`;
     const status = document.createElement('div');
     status.id = `${PANEL_ID}-status`;
     status.textContent = state.message;
@@ -321,7 +414,11 @@
   async function scheduleResume() {
     const state = await getState();
     const task = state.task || 'unfollow';
-    const isCurrentTaskPage = task === 'unfollow' ? isFollowingPage() : isFriendRequestsPage();
+    const isCurrentTaskPage = task === 'unfollow'
+      ? isFollowingPage()
+      : task === 'cancelRequests'
+        ? isFriendRequestsPage()
+        : isJoinedGroupsPage();
     if (!state.active || resumeTimer !== null || !isCurrentTaskPage) return;
     const runAt = Date.now() + WAIT_AFTER_REFRESH_MS;
     await saveState({ message: 'Page refreshed. Next batch begins in 30s…' });
@@ -331,6 +428,7 @@
       clearResumeTimers();
       const latest = await getState();
       if (latest.task === 'cancelRequests') runCancelRequestsBatch();
+      else if (latest.task === 'leaveGroups') runLeaveGroupsBatch();
       else runBatch();
     }, WAIT_AFTER_REFRESH_MS);
   }
@@ -349,6 +447,13 @@
     runCancelRequestsBatch();
   }
 
+  async function startLeaveGroups() {
+    if (!isJoinedGroupsPage()) return;
+    clearResumeTimers();
+    await saveState({ active: true, task: 'leaveGroups', message: 'Starting the first leave-group batch…' });
+    runLeaveGroupsBatch();
+  }
+
   async function pause() {
     clearResumeTimers();
     await saveState({ active: false, task: null, message: 'Paused by you.' });
@@ -357,7 +462,11 @@
   async function handleRouteChange() {
     const state = await getState();
     const task = state.task || 'unfollow';
-    const isCurrentTaskPage = task === 'unfollow' ? isFollowingPage() : isFriendRequestsPage();
+    const isCurrentTaskPage = task === 'unfollow'
+      ? isFollowingPage()
+      : task === 'cancelRequests'
+        ? isFriendRequestsPage()
+        : isJoinedGroupsPage();
     if (!isCurrentTaskPage) {
       wasOnFollowingPage = false;
       clearResumeTimers();
@@ -374,6 +483,7 @@
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'start') start().then(() => sendResponse({ ok: true }));
     else if (message?.type === 'cancel-sent-requests') startCancelRequests().then(() => sendResponse({ ok: true }));
+    else if (message?.type === 'leave-groups') startLeaveGroups().then(() => sendResponse({ ok: true }));
     else if (message?.type === 'pause') pause().then(() => sendResponse({ ok: true }));
     else return;
     return true;

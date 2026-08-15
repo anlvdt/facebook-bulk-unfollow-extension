@@ -15,6 +15,7 @@ Chrome Extension (Manifest V3) hỗ trợ quản lý danh sách Facebook **Follo
 - Menu không có mục Unfollow sẽ được đóng trước khi extension chuyển sang thẻ tiếp theo.
 - Hỗ trợ nhãn menu tiếng Anh và tiếng Việt: `Unfollow` / `Bỏ theo dõi`.
 - Từ popup, huỷ tối đa 25 lời mời kết bạn đã gửi mỗi batch tại `/friends/requests` bằng **Cancel sent requests**.
+- Từ popup, rời tối đa 25 nhóm mỗi batch tại `/groups/joins/` bằng **Leave Facebook groups**.
 
 ## Cài đặt extension
 
@@ -27,6 +28,8 @@ Chrome Extension (Manifest V3) hỗ trợ quản lý danh sách Facebook **Follo
 7. Nhấn biểu tượng extension và chọn **Start continuous run**.
 
 Để huỷ lời mời kết bạn đã gửi, mở `https://www.facebook.com/friends/requests`, nhấn **Cancel sent requests** trong popup. Extension chỉ thao tác các nút `Cancel request` / `Hủy lời mời` trong hộp thoại **Sent requests / Lời mời đã gửi**.
+
+Để rời nhóm, mở `https://www.facebook.com/groups/joins/`, nhấn **Leave Facebook groups** trong popup. Extension chỉ mở nút `Joined` / `Đã tham gia` trên thẻ nhóm rồi chọn `Leave group` / `Rời khỏi nhóm`.
 
 Khi cập nhật mã nguồn, vào `chrome://extensions` và nhấn biểu tượng **Reload** của extension, sau đó refresh tab Facebook.
 
@@ -91,6 +94,7 @@ This is a Manifest V3 Chrome Extension for managing a Facebook **Following** lis
 - Closes a menu that does not contain Unfollow before moving to the next card.
 - Recognizes English and Vietnamese menu text: `Unfollow` / `Bỏ theo dõi`.
 - From the popup, cancel up to 25 sent friend requests per batch at `/friends/requests` with **Cancel sent requests**.
+- From the popup, leave up to 25 Facebook groups per batch at `/groups/joins/` with **Leave Facebook groups**.
 
 ## Installation
 
@@ -103,6 +107,8 @@ This is a Manifest V3 Chrome Extension for managing a Facebook **Following** lis
 7. Click the extension icon and choose **Start continuous run**.
 
 To cancel sent friend requests, open `https://www.facebook.com/friends/requests` and click **Cancel sent requests** in the extension popup. The extension acts only on `Cancel request` / `Hủy lời mời` buttons inside the **Sent requests / Lời mời đã gửi** dialog.
+
+To leave groups, open `https://www.facebook.com/groups/joins/` and click **Leave Facebook groups** in the extension popup. The extension opens only the `Joined` / `Đã tham gia` control on a group card and then selects `Leave group` / `Rời khỏi nhóm`.
 
 After changing the source, press the extension's **Reload** icon on `chrome://extensions`, then reload the Facebook tab.
 
