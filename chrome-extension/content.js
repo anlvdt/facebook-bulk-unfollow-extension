@@ -105,8 +105,20 @@
     await sleep(1_000);
   }
 
-  function closeMenu() {
-    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  async function closeMenu(menuButton) {
+    // Toggle the exact trigger first. A synthetic click on document.body is not always
+    // handled by Facebook's React menu, which previously left unrelated menus open.
+    if (menuButton?.isConnected && isVisible(menuButton)) menuButton.click();
+    await sleep(120);
+
+    if (!Array.from(document.querySelectorAll('[role="menuitem"]')).some(isVisible)) return;
+
+    // Escape is the standard fallback for Facebook menus when the source button moved.
+    for (const type of ['keydown', 'keyup']) {
+      document.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true }));
+    }
+    await sleep(80);
+    if (Array.from(document.querySelectorAll('[role="menuitem"]')).some(isVisible)) document.body.click();
   }
 
   async function runBatch() {
@@ -138,8 +150,8 @@
           const unfollowItem = findUnfollowMenuItem();
           if (!unfollowItem) {
             menusWithoutUnfollow += 1;
-            closeMenu();
-            await sleep(350);
+            await closeMenu(menuButton);
+            await sleep(250);
             continue;
           }
 
@@ -153,7 +165,7 @@
           await sleep(BETWEEN_ACTIONS_MS);
         } catch (error) {
           console.warn('[Facebook Bulk Unfollow]', error);
-          closeMenu();
+          await closeMenu(menuButton);
         }
       }
 
