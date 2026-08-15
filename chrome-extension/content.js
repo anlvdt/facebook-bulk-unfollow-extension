@@ -154,6 +154,13 @@
   }
 
   function renderPanel(state) {
+    // Keep Facebook's non-Following surfaces (especially Messenger) unobstructed. The
+    // browser-action popup remains available everywhere for checking state or pausing.
+    if (!isFollowingPage()) {
+      document.getElementById(PANEL_ID)?.remove();
+      return;
+    }
+
     let panel = document.getElementById(PANEL_ID);
     if (!panel) {
       panel = document.createElement('section');
@@ -166,7 +173,6 @@
       document.body.appendChild(panel);
     }
 
-    const onFollowingPage = isFollowingPage();
     panel.replaceChildren();
     const title = document.createElement('strong');
     title.textContent = 'Bulk Unfollow';
@@ -174,13 +180,13 @@
     stats.textContent = `Total: ${state.totalUnfollowed} · Batches: ${state.batches}`;
     const status = document.createElement('div');
     status.id = `${PANEL_ID}-status`;
-    status.textContent = onFollowingPage ? state.message : 'Open your Facebook Following page to start.';
+    status.textContent = state.message;
     Object.assign(status.style, { margin: '7px 0', fontSize: '12px', color: '#d9e7ff' });
     const button = document.createElement('button');
-    button.textContent = state.active ? 'Pause' : onFollowingPage ? 'Start continuous run' : 'Open Following list first';
+    button.textContent = state.active ? 'Pause' : 'Start continuous run';
     Object.assign(button.style, {
       width: '100%', padding: '8px 10px', border: 0, borderRadius: '5px', cursor: 'pointer', color: '#fff',
-      background: state.active ? '#c5221f' : '#1877f2', fontWeight: '600', opacity: !state.active && !onFollowingPage ? '.6' : '1'
+      background: state.active ? '#c5221f' : '#1877f2', fontWeight: '600'
     });
     button.addEventListener('click', () => state.active ? pause() : start());
     panel.append(title, stats, status, button);

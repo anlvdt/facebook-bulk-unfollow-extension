@@ -7,7 +7,7 @@ Chrome Extension (Manifest V3) hỗ trợ quản lý danh sách Facebook **Follo
 ## Tính năng
 
 - Chrome Extension Manifest V3, không cần Tampermonkey.
-- Popup **Start/Pause** và panel trạng thái ngay trên trang Facebook.
+- Popup **Start/Pause** và panel trạng thái chỉ trên trang Following (không che Messenger).
 - Tối đa 25 mục mỗi batch.
 - Refresh sau batch và đếm ngược cố định 30 giây trước batch kế tiếp.
 - Lưu tổng số và trạng thái trong `chrome.storage.local` để tiếp tục sau refresh.
@@ -79,7 +79,7 @@ This is a Manifest V3 Chrome Extension for managing a Facebook **Following** lis
 ## Features
 
 - Manifest V3 Chrome Extension — no Tampermonkey required.
-- **Start/Pause** popup and an in-page status panel.
+- A **Start/Pause** popup and an in-page status panel on the Following page only (never over Messenger).
 - Up to 25 entries per batch.
 - A page reload and a visible, fixed 30-second countdown between batches.
 - Local progress storage using `chrome.storage.local`, so progress survives the extension's reloads.
