@@ -70,6 +70,31 @@
       .find(item => /\bunfollow\b|bỏ theo dõi/i.test(item.innerText || ''));
   }
 
+  function findSponsoredHeading() {
+    return Array.from(document.querySelectorAll('[role="heading"], h2, h3, span'))
+      .find(element => isVisible(element) && /^(sponsored|được tài trợ)$/i.test((element.innerText || '').trim()));
+  }
+
+  function placePanel(panel) {
+    const sponsoredHeading = findSponsoredHeading();
+    if (sponsoredHeading) {
+      Object.assign(panel.style, {
+        position: 'relative', top: 'auto', right: 'auto', bottom: 'auto', left: 'auto',
+        width: 'auto', margin: '12px 0', zIndex: 'auto'
+      });
+      sponsoredHeading.insertAdjacentElement('afterend', panel);
+      return;
+    }
+
+    // Facebook may render the right rail after the main content. Keep a non-blocking fallback
+    // until the Sponsored section exists; the next panel render moves it into that section.
+    Object.assign(panel.style, {
+      position: 'fixed', right: '20px', bottom: '24px', left: 'auto', top: 'auto',
+      width: '260px', margin: '0', zIndex: 2147483647
+    });
+    if (!panel.parentElement) document.body.appendChild(panel);
+  }
+
   async function scrollToLoadProfiles() {
     const deadline = Date.now() + SCROLL_DURATION_MS;
     while (Date.now() < deadline) {
@@ -166,12 +191,11 @@
       panel = document.createElement('section');
       panel.id = PANEL_ID;
       Object.assign(panel.style, {
-        position: 'fixed', right: '20px', bottom: '24px', zIndex: 2147483647,
-        width: '260px', padding: '12px', color: '#fff', background: '#1c1e21',
+        padding: '12px', color: '#fff', background: '#1c1e21',
         borderRadius: '8px', font: '14px/1.4 system-ui, sans-serif', boxShadow: '0 3px 12px rgba(0,0,0,.35)'
       });
-      document.body.appendChild(panel);
     }
+    placePanel(panel);
 
     panel.replaceChildren();
     const title = document.createElement('strong');
