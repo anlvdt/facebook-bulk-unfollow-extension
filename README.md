@@ -14,6 +14,7 @@ Chrome Extension (Manifest V3) hỗ trợ quản lý danh sách Facebook **Follo
 - Chỉ dùng các nút ba chấm trong khu vực bên dưới tab **Following**; loại trừ nút ba chấm ở header hồ sơ và thanh Friends.
 - Menu không có mục Unfollow sẽ được đóng trước khi extension chuyển sang thẻ tiếp theo.
 - Hỗ trợ nhãn menu tiếng Anh và tiếng Việt: `Unfollow` / `Bỏ theo dõi`.
+- Từ popup, huỷ tối đa 25 lời mời kết bạn đã gửi mỗi batch tại `/friends/requests` bằng **Cancel sent requests**.
 
 ## Cài đặt extension
 
@@ -24,6 +25,8 @@ Chrome Extension (Manifest V3) hỗ trợ quản lý danh sách Facebook **Follo
 5. Chọn thư mục [`chrome-extension`](./chrome-extension).
 6. Mở trang `https://www.facebook.com/<ten-tai-khoan>/following`.
 7. Nhấn biểu tượng extension và chọn **Start continuous run**.
+
+Để huỷ lời mời kết bạn đã gửi, mở `https://www.facebook.com/friends/requests`, nhấn **Cancel sent requests** trong popup. Extension chỉ thao tác các nút `Cancel request` / `Hủy lời mời` trong hộp thoại **Sent requests / Lời mời đã gửi**.
 
 Khi cập nhật mã nguồn, vào `chrome://extensions` và nhấn biểu tượng **Reload** của extension, sau đó refresh tab Facebook.
 
@@ -87,6 +90,7 @@ This is a Manifest V3 Chrome Extension for managing a Facebook **Following** lis
 - Targets three-dot menus below the selected **Following** tab only, excluding profile-header and Friends-toolbar menus.
 - Closes a menu that does not contain Unfollow before moving to the next card.
 - Recognizes English and Vietnamese menu text: `Unfollow` / `Bỏ theo dõi`.
+- From the popup, cancel up to 25 sent friend requests per batch at `/friends/requests` with **Cancel sent requests**.
 
 ## Installation
 
@@ -97,6 +101,8 @@ This is a Manifest V3 Chrome Extension for managing a Facebook **Following** lis
 5. Select the [`chrome-extension`](./chrome-extension) folder.
 6. Open `https://www.facebook.com/<your-username>/following`.
 7. Click the extension icon and choose **Start continuous run**.
+
+To cancel sent friend requests, open `https://www.facebook.com/friends/requests` and click **Cancel sent requests** in the extension popup. The extension acts only on `Cancel request` / `Hủy lời mời` buttons inside the **Sent requests / Lời mời đã gửi** dialog.
 
 After changing the source, press the extension's **Reload** icon on `chrome://extensions`, then reload the Facebook tab.
 

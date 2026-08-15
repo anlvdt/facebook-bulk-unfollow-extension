@@ -11,8 +11,11 @@
 
   const defaultState = {
     active: false,
+    task: null,
     totalUnfollowed: 0,
     batches: 0,
+    totalCancelledRequests: 0,
+    cancelBatches: 0,
     message: 'Open your Facebook Following page to start.'
   };
 
@@ -24,6 +27,7 @@
 
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
   const isFollowingPage = () => /\/(?:following|friends_following)(?:[/?#]|$)/.test(location.pathname + location.search);
+  const isFriendRequestsPage = () => /^\/friends\/requests(?:[/?#]|$)/.test(location.pathname + location.search);
 
   async function getState() {
     const stored = await chrome.storage.local.get(STATE_KEY);
@@ -68,6 +72,29 @@
     return Array.from(document.querySelectorAll('[role="menuitem"]'))
       .filter(isVisible)
       .find(item => /\bunfollow\b|bỏ theo dõi/i.test(item.innerText || ''));
+  }
+
+  function findSentRequestsDialog() {
+    return Array.from(document.querySelectorAll('[role="dialog"]'))
+      .find(dialog => isVisible(dialog) && /\b(sent requests|lời mời đã gửi)\b/i.test(dialog.innerText || ''));
+  }
+
+  async function openSentRequestsDialog() {
+    let dialog = findSentRequestsDialog();
+    if (dialog) return dialog;
+
+    const sentRequestsControl = Array.from(document.querySelectorAll('a, [role="button"], [role="link"]'))
+      .find(element => isVisible(element) && /^(view |see )?sent requests$|^(xem )?lời mời đã gửi$/i.test((element.innerText || '').trim()));
+    if (!sentRequestsControl) return null;
+
+    sentRequestsControl.click();
+    await sleep(1_000);
+    return findSentRequestsDialog();
+  }
+
+  function getCancelRequestButtons(dialog) {
+    return Array.from(dialog.querySelectorAll('button, [role="button"]'))
+      .filter(button => isVisible(button) && /^(cancel request|hủy lời mời)$/i.test((button.innerText || '').trim()));
   }
 
   function findSponsoredHeading() {
@@ -123,7 +150,7 @@
 
   async function runBatch() {
     const initialState = await getState();
-    if (isRunning || !initialState.active || !isFollowingPage()) return;
+    if (isRunning || !initialState.active || (initialState.task && initialState.task !== 'unfollow') || !isFollowingPage()) return;
     isRunning = true;
     await saveState({ message: 'Loading profiles for the next batch…' });
 
@@ -190,6 +217,56 @@
     }
   }
 
+  async function runCancelRequestsBatch() {
+    const initialState = await getState();
+    if (isRunning || !initialState.active || initialState.task !== 'cancelRequests' || !isFriendRequestsPage()) return;
+    isRunning = true;
+    await saveState({ message: 'Opening Sent requests…' });
+
+    try {
+      const dialog = await openSentRequestsDialog();
+      if (!dialog) {
+        await saveState({ active: false, task: null, message: 'Stopped: Sent requests could not be opened.' });
+        return;
+      }
+
+      let cancelled = 0;
+      while (cancelled < BATCH_SIZE) {
+        const state = await getState();
+        if (!state.active || state.task !== 'cancelRequests') break;
+
+        const cancelButton = getCancelRequestButtons(dialog)[0];
+        if (!cancelButton) break;
+        cancelButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await sleep(300);
+        cancelButton.click();
+        cancelled += 1;
+        const latest = await getState();
+        await saveState({
+          totalCancelledRequests: latest.totalCancelledRequests + 1,
+          message: `Cancelled ${cancelled}/${BATCH_SIZE} sent requests in this batch…`
+        });
+        await sleep(BETWEEN_ACTIONS_MS);
+      }
+
+      const state = await getState();
+      if (!state.active || state.task !== 'cancelRequests') return;
+      if (cancelled === 0) {
+        await saveState({ active: false, task: null, message: 'Stopped: no Cancel request button remains.' });
+        return;
+      }
+
+      await saveState({
+        cancelBatches: state.cancelBatches + 1,
+        message: `Cancelled batch complete (${cancelled}). Refreshing…`
+      });
+      await sleep(1_000);
+      location.reload();
+    } finally {
+      isRunning = false;
+    }
+  }
+
   function renderPanel(state) {
     // Keep Facebook's non-Following surfaces (especially Messenger) unobstructed. The
     // browser-action popup remains available everywhere for checking state or pausing.
@@ -213,7 +290,7 @@
     const title = document.createElement('strong');
     title.textContent = 'Bulk Unfollow';
     const stats = document.createElement('div');
-    stats.textContent = `Total: ${state.totalUnfollowed} · Batches: ${state.batches}`;
+    stats.textContent = `Unfollowed: ${state.totalUnfollowed} · Cancelled requests: ${state.totalCancelledRequests}`;
     const status = document.createElement('div');
     status.id = `${PANEL_ID}-status`;
     status.textContent = state.message;
@@ -243,37 +320,50 @@
 
   async function scheduleResume() {
     const state = await getState();
-    if (!state.active || resumeTimer !== null || !isFollowingPage()) return;
+    const task = state.task || 'unfollow';
+    const isCurrentTaskPage = task === 'unfollow' ? isFollowingPage() : isFriendRequestsPage();
+    if (!state.active || resumeTimer !== null || !isCurrentTaskPage) return;
     const runAt = Date.now() + WAIT_AFTER_REFRESH_MS;
     await saveState({ message: 'Page refreshed. Next batch begins in 30s…' });
     renderCountdown(runAt);
     countdownTimer = setInterval(() => renderCountdown(runAt), 1_000);
-    resumeTimer = setTimeout(() => {
+    resumeTimer = setTimeout(async () => {
       clearResumeTimers();
-      runBatch();
+      const latest = await getState();
+      if (latest.task === 'cancelRequests') runCancelRequestsBatch();
+      else runBatch();
     }, WAIT_AFTER_REFRESH_MS);
   }
 
   async function start() {
     if (!isFollowingPage()) return;
     clearResumeTimers();
-    await saveState({ active: true, message: 'Starting the first batch…' });
+    await saveState({ active: true, task: 'unfollow', message: 'Starting the first unfollow batch…' });
     runBatch();
+  }
+
+  async function startCancelRequests() {
+    if (!isFriendRequestsPage()) return;
+    clearResumeTimers();
+    await saveState({ active: true, task: 'cancelRequests', message: 'Starting the first request-cancellation batch…' });
+    runCancelRequestsBatch();
   }
 
   async function pause() {
     clearResumeTimers();
-    await saveState({ active: false, message: 'Paused by you.' });
+    await saveState({ active: false, task: null, message: 'Paused by you.' });
   }
 
   async function handleRouteChange() {
-    if (!isFollowingPage()) {
+    const state = await getState();
+    const task = state.task || 'unfollow';
+    const isCurrentTaskPage = task === 'unfollow' ? isFollowingPage() : isFriendRequestsPage();
+    if (!isCurrentTaskPage) {
       wasOnFollowingPage = false;
       clearResumeTimers();
-      renderPanel(await getState());
+      renderPanel(state);
       return;
     }
-    const state = await getState();
     renderPanel(state);
     if (!wasOnFollowingPage) {
       wasOnFollowingPage = true;
@@ -283,6 +373,7 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'start') start().then(() => sendResponse({ ok: true }));
+    else if (message?.type === 'cancel-sent-requests') startCancelRequests().then(() => sendResponse({ ok: true }));
     else if (message?.type === 'pause') pause().then(() => sendResponse({ ok: true }));
     else return;
     return true;
