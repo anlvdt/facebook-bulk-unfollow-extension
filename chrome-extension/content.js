@@ -2,7 +2,6 @@
   'use strict';
 
   const BATCH_SIZE = 25;
-  const MAX_STALE_FOLLOWING_BATCHES = 5;
   const WAIT_AFTER_REFRESH_MS = 30_000;
   const MENU_OPEN_DELAY_MS = 1_000;
   const BETWEEN_ACTIONS_MS = 1_200;
@@ -259,10 +258,10 @@
       if (!state.active) return;
       if (unfollowed === 0) {
         const staleBatches = state.staleFollowingBatches + 1;
-        if (menusWithoutUnfollow > 0 && staleBatches < MAX_STALE_FOLLOWING_BATCHES) {
+        if (menusWithoutUnfollow > 0) {
           await saveState({
             staleFollowingBatches: staleBatches,
-            message: `Skipped ${menusWithoutUnfollow} already-unfollowed cards. Refreshing to load more (${staleBatches}/${MAX_STALE_FOLLOWING_BATCHES})…`
+            message: `Skipped ${menusWithoutUnfollow} already-unfollowed cards. Continuing with a refreshed bottom scan (stale batch ${staleBatches})…`
           });
           await sleep(1_000);
           location.reload();
@@ -272,7 +271,7 @@
           active: false,
           task: null,
           message: menusWithoutUnfollow
-            ? `Paused after ${MAX_STALE_FOLLOWING_BATCHES} stale batches. Facebook is still showing already-unfollowed cards; refresh later and start again.`
+            ? 'Stopped: no usable Unfollow action was found.'
             : 'Stopped: no Following entries remain.'
         });
         return;
