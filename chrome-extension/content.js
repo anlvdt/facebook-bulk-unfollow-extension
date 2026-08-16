@@ -170,14 +170,18 @@
     if (!panel.parentElement) document.body.appendChild(panel);
   }
 
-  async function scrollToLoadProfiles() {
+  async function scrollToLoadProfiles({ returnToTop = true } = {}) {
     const deadline = Date.now() + SCROLL_DURATION_MS;
     while (Date.now() < deadline) {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       await sleep(900);
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    await sleep(1_000);
+    if (returnToTop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      await sleep(1_000);
+    } else {
+      await sleep(700);
+    }
   }
 
   async function closeMenu(menuButton) {
@@ -200,10 +204,12 @@
     const initialState = await getState();
     if (isRunning || !initialState.active || (initialState.task && initialState.task !== 'unfollow') || !isFollowingPage()) return;
     isRunning = true;
-    await saveState({ message: 'Loading profiles for the next batch…' });
+    await saveState({ message: 'Loading the bottom of Following for the next batch…' });
 
     try {
-      await scrollToLoadProfiles();
+      // Already-unfollowed cards may linger at the top of Facebook's list. Keep the page
+      // at the bottom after loading so the current batch begins with the unprocessed end.
+      await scrollToLoadProfiles({ returnToTop: false });
       const menuButtons = getFollowingMenuButtons();
       if (menuButtons.length === 0) {
         await saveState({ active: false, message: 'Stopped: no Following entries were found.' });
