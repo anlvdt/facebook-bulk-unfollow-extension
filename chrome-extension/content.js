@@ -68,7 +68,11 @@
     const followingTabBottom = followingTab.getBoundingClientRect().bottom;
     const cardMenus = candidates.filter(button => button.getBoundingClientRect().top > followingTabBottom + 12);
     const profileActions = cardMenus.filter(button => /^(actions for|thao tác dành cho|tùy chọn cho)\b/i.test(button.getAttribute('aria-label') || ''));
-    return profileActions.length > 0 ? profileActions : cardMenus;
+    const selectedMenus = profileActions.length > 0 ? profileActions : cardMenus;
+
+    // querySelectorAll follows DOM order (top-to-bottom), even after the page has scrolled.
+    // Sort the actual on-screen geometry so the lowest Following cards are processed first.
+    return selectedMenus.sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
   }
 
   function findUnfollowMenuItem() {
