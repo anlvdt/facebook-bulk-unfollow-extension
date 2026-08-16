@@ -3,7 +3,7 @@
 
   const BATCH_SIZE = 25;
   const WAIT_AFTER_REFRESH_MS = 30_000;
-  const MENU_OPEN_DELAY_MS = 700;
+  const MENU_OPEN_DELAY_MS = 1_000;
   const BETWEEN_ACTIONS_MS = 1_200;
   const SCROLL_DURATION_MS = 8_000;
   const STATE_KEY = 'facebookBulkUnfollowState';
@@ -56,25 +56,33 @@
         return isVisible(button) && /actions for|more options|thao tác|tùy chọn/i.test(label);
       });
 
-    // Facebook varies this aria-label by UI experiment and account language. Prefer the
-    // per-profile label when it is present; otherwise use the visible "More options" dots.
-    const profileActions = candidates.filter(button => /^(actions for|thao tác dành cho|tùy chọn cho)\b/i.test(button.getAttribute('aria-label') || ''));
-    if (profileActions.length > 0) return profileActions;
-
-    // The generic fallback must be constrained to the cards below the selected Following
-    // tab. This excludes the profile-header and Friends toolbar three-dot buttons.
+    // Every candidate, including an "Actions for …" button, must be below the active
+    // Following tab. Previously only the generic fallback was scoped, so a header button
+    // elsewhere on the page could be preferred over the cards that actually support Unfollow.
     const followingTab = Array.from(document.querySelectorAll('[role="tab"], a, [role="link"]'))
       .find(element => isVisible(element) && /^(following|đang theo dõi)$/i.test((element.innerText || '').trim()));
     if (!followingTab) return [];
 
     const followingTabBottom = followingTab.getBoundingClientRect().bottom;
-    return candidates.filter(button => button.getBoundingClientRect().top > followingTabBottom + 12);
+    const cardMenus = candidates.filter(button => button.getBoundingClientRect().top > followingTabBottom + 12);
+    const profileActions = cardMenus.filter(button => /^(actions for|thao tác dành cho|tùy chọn cho)\b/i.test(button.getAttribute('aria-label') || ''));
+    return profileActions.length > 0 ? profileActions : cardMenus;
   }
 
   function findUnfollowMenuItem() {
-    return Array.from(document.querySelectorAll('[role="menuitem"]'))
+    return Array.from(document.querySelectorAll('[role^="menuitem"], [role="option"]'))
       .filter(isVisible)
       .find(item => /\bunfollow\b|bỏ theo dõi/i.test(item.innerText || ''));
+  }
+
+  async function waitForUnfollowMenuItem(timeoutMs = 2_000) {
+    const deadline = Date.now() + timeoutMs;
+    let item = findUnfollowMenuItem();
+    while (!item && Date.now() < deadline) {
+      await sleep(100);
+      item = findUnfollowMenuItem();
+    }
+    return item;
   }
 
   function findSentRequestsDialog() {
@@ -176,14 +184,14 @@
     if (menuButton?.isConnected && isVisible(menuButton)) menuButton.click();
     await sleep(120);
 
-    if (!Array.from(document.querySelectorAll('[role="menuitem"]')).some(isVisible)) return;
+    if (!Array.from(document.querySelectorAll('[role^="menuitem"], [role="option"]')).some(isVisible)) return;
 
     // Escape is the standard fallback for Facebook menus when the source button moved.
     for (const type of ['keydown', 'keyup']) {
       document.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true }));
     }
     await sleep(80);
-    if (Array.from(document.querySelectorAll('[role="menuitem"]')).some(isVisible)) document.body.click();
+    if (Array.from(document.querySelectorAll('[role^="menuitem"], [role="option"]')).some(isVisible)) document.body.click();
   }
 
   async function runBatch() {
@@ -212,7 +220,7 @@
           menuButton.click();
           await sleep(MENU_OPEN_DELAY_MS);
 
-          const unfollowItem = findUnfollowMenuItem();
+          const unfollowItem = await waitForUnfollowMenuItem();
           if (!unfollowItem) {
             menusWithoutUnfollow += 1;
             await closeMenu(menuButton);
@@ -239,7 +247,9 @@
       if (unfollowed === 0) {
         await saveState({
           active: false,
-          message: menusWithoutUnfollow ? 'Stopped: no Unfollow action was found.' : 'Stopped: no Following entries remain.'
+          message: menusWithoutUnfollow
+            ? `Stopped: ${menusWithoutUnfollow} card menus had no Unfollow action. Facebook may have changed this UI.`
+            : 'Stopped: no Following entries remain.'
         });
         return;
       }
