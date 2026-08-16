@@ -15,6 +15,7 @@
     totalUnfollowed: 0,
     batches: 0,
     staleFollowingBatches: 0,
+    reportedFollowing: '',
     totalCancelledRequests: 0,
     cancelBatches: 0,
     totalLeftGroups: 0,
@@ -78,6 +79,17 @@
     return Array.from(document.querySelectorAll('[role^="menuitem"], [role="option"]'))
       .filter(isVisible)
       .find(item => /\bunfollow\b|bỏ theo dõi/i.test(item.innerText || ''));
+  }
+
+  function readFollowingHeader() {
+    const countPattern = /^(0|[\d.,]+\s*[KMB]?)\s+(following|đang theo dõi)$/i;
+    const label = Array.from(document.querySelectorAll('span, div, a'))
+      .find(element => isVisible(element) && countPattern.test((element.innerText || '').trim()));
+    if (!label) return null;
+
+    const text = label.innerText.trim();
+    const match = text.match(countPattern);
+    return { text, isZero: match?.[1].replace(/[,\.]/g, '') === '0' };
   }
 
   async function waitForUnfollowMenuItem(timeoutMs = 2_000) {
@@ -206,8 +218,23 @@
   async function runBatch() {
     const initialState = await getState();
     if (isRunning || !initialState.active || (initialState.task && initialState.task !== 'unfollow') || !isFollowingPage()) return;
+
+    const followingHeader = readFollowingHeader();
+    if (followingHeader?.isZero) {
+      await saveState({
+        active: false,
+        task: null,
+        reportedFollowing: followingHeader.text,
+        message: 'Completed: Facebook now reports 0 following.'
+      });
+      return;
+    }
+
     isRunning = true;
-    await saveState({ message: 'Loading the bottom of Following for the next batch…' });
+    await saveState({
+      reportedFollowing: followingHeader?.text || initialState.reportedFollowing,
+      message: 'Loading the bottom of Following for the next batch…'
+    });
 
     try {
       // Already-unfollowed cards may linger at the top of Facebook's list. Keep the page
@@ -417,7 +444,7 @@
     const title = document.createElement('strong');
     title.textContent = 'Bulk Unfollow';
     const stats = document.createElement('div');
-    stats.textContent = `Unfollowed: ${state.totalUnfollowed} · Cancelled: ${state.totalCancelledRequests} · Groups left: ${state.totalLeftGroups}`;
+    stats.textContent = `Unfollowed: ${state.totalUnfollowed} · Remaining: ${state.reportedFollowing || '—'}`;
     const status = document.createElement('div');
     status.id = `${PANEL_ID}-status`;
     status.textContent = state.message;

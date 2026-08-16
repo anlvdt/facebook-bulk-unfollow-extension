@@ -15,6 +15,7 @@ Chrome Extension (Manifest V3) hỗ trợ quản lý danh sách Facebook **Follo
 - Chờ menu Facebook tải hoàn tất trước khi xác định hành động Unfollow.
 - Bỏ qua các thẻ Facebook vẫn hiển thị sau khi đã unfollow và tiếp tục refresh để lấy dữ liệu mới cho đến khi bạn tự Pause hoặc không còn thẻ Following.
 - Sắp xếp menu theo vị trí thực tế từ dưới lên trên để tránh các thẻ đã unfollow nhưng còn kẹt ở đầu trang.
+- Đọc số `following` ở header và chỉ tự dừng khi Facebook hiển thị đúng `0 following` / `0 đang theo dõi`.
 - Menu không có mục Unfollow sẽ được đóng trước khi extension chuyển sang thẻ tiếp theo.
 - Hỗ trợ nhãn menu tiếng Anh và tiếng Việt: `Unfollow` / `Bỏ theo dõi`.
 - Từ popup, huỷ tối đa 25 lời mời kết bạn đã gửi mỗi batch tại `/friends/requests` bằng **Cancel sent requests**.
@@ -97,6 +98,7 @@ This is a Manifest V3 Chrome Extension for managing a Facebook **Following** lis
 - Waits for Facebook's menu to finish rendering before looking for Unfollow.
 - Skips cards Facebook still displays after an unfollow and keeps refreshing for new data until you pause or no Following cards remain.
 - Sorts menus by their actual screen position from bottom to top to avoid stale cards lingering at the top.
+- Reads the following count in the profile header and stops automatically only when Facebook reports exactly `0 following` / `0 đang theo dõi`.
 - Closes a menu that does not contain Unfollow before moving to the next card.
 - Recognizes English and Vietnamese menu text: `Unfollow` / `Bỏ theo dõi`.
 - From the popup, cancel up to 25 sent friend requests per batch at `/friends/requests` with **Cancel sent requests**.

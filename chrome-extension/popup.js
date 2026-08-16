@@ -5,6 +5,7 @@ const defaultState = {
   task: null,
   totalUnfollowed: 0,
   batches: 0,
+  reportedFollowing: '',
   totalCancelledRequests: 0,
   cancelBatches: 0,
   totalLeftGroups: 0,
@@ -28,7 +29,7 @@ async function render() {
   const isFollowing = /\/following(?:[/?#]|$)|\/friends_following(?:[/?#]|$)/.test(tab?.url || '');
   const isRequests = /\/friends\/requests(?:[/?#]|$)/.test(tab?.url || '');
   const isGroups = /\/groups\/joins(?:[/?#]|$)/.test(tab?.url || '');
-  document.getElementById('stats').textContent = `Unfollowed: ${state.totalUnfollowed} · Cancelled: ${state.totalCancelledRequests} · Groups left: ${state.totalLeftGroups}`;
+  document.getElementById('stats').textContent = `Unfollowed: ${state.totalUnfollowed} · Following shown: ${state.reportedFollowing || '—'} · Cancelled: ${state.totalCancelledRequests} · Groups left: ${state.totalLeftGroups}`;
   document.getElementById('status').textContent = tab ? state.message : 'Open Facebook first.';
 
   const button = document.getElementById('toggle');
