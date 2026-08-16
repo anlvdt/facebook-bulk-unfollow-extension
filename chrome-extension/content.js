@@ -2,6 +2,7 @@
   'use strict';
 
   const BATCH_SIZE = 25;
+  const MAX_STALE_FOLLOWING_BATCHES = 5;
   const WAIT_AFTER_REFRESH_MS = 30_000;
   const MENU_OPEN_DELAY_MS = 1_000;
   const BETWEEN_ACTIONS_MS = 1_200;
@@ -14,6 +15,7 @@
     task: null,
     totalUnfollowed: 0,
     batches: 0,
+    staleFollowingBatches: 0,
     totalCancelledRequests: 0,
     cancelBatches: 0,
     totalLeftGroups: 0,
@@ -233,6 +235,7 @@
           const latest = await getState();
           await saveState({
             totalUnfollowed: latest.totalUnfollowed + 1,
+            staleFollowingBatches: 0,
             message: `Unfollowed ${unfollowed}/${BATCH_SIZE} in this batch…`
           });
           await sleep(BETWEEN_ACTIONS_MS);
@@ -245,10 +248,21 @@
       const state = await getState();
       if (!state.active) return;
       if (unfollowed === 0) {
+        const staleBatches = state.staleFollowingBatches + 1;
+        if (menusWithoutUnfollow > 0 && staleBatches < MAX_STALE_FOLLOWING_BATCHES) {
+          await saveState({
+            staleFollowingBatches: staleBatches,
+            message: `Skipped ${menusWithoutUnfollow} already-unfollowed cards. Refreshing to load more (${staleBatches}/${MAX_STALE_FOLLOWING_BATCHES})…`
+          });
+          await sleep(1_000);
+          location.reload();
+          return;
+        }
         await saveState({
           active: false,
+          task: null,
           message: menusWithoutUnfollow
-            ? `Stopped: ${menusWithoutUnfollow} card menus had no Unfollow action. Facebook may have changed this UI.`
+            ? `Paused after ${MAX_STALE_FOLLOWING_BATCHES} stale batches. Facebook is still showing already-unfollowed cards; refresh later and start again.`
             : 'Stopped: no Following entries remain.'
         });
         return;
@@ -256,6 +270,7 @@
 
       await saveState({
         batches: state.batches + 1,
+        staleFollowingBatches: 0,
         message: `Batch complete (${unfollowed}). Refreshing…`
       });
       await sleep(1_000);
